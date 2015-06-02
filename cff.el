@@ -52,11 +52,13 @@
 ;;; Code:
 
 (defvar cff-header-regexps '(("\\.h$" . (lambda (base) (concat base ".h")))
-                             ("\\.hpp$" . (lambda (base) (concat base ".hpp"))))
+                             ("\\.hpp$" . (lambda (base) (concat base ".hpp")))
+                             ("\\.hxx$" . (lambda (base) (concat base ".hxx"))))
   "Regexps used to determine if the file is a C/C++ header file.  List of pairs: regexp of the file extension and a function to construct filename by the given base name.")
 
 (defvar cff-source-regexps '(("\\.c$" . (lambda (base) (concat base ".c")))
                              ("\\.cc$" . (lambda (base) (concat base ".cc")))
+                             ("\\.cxx$" . (lambda (base) (concat base ".cxx")))
                              ("\\.cpp$" . (lambda (base) (concat base ".cpp"))))
   "Regexps used to determine if the file is a C/C++ source file.  List of pairs: regexp of the file extension anda function to construct filename by the given base name.")
 
@@ -66,9 +68,9 @@
   "Regexps used to determine if the file is a C++ interface file.  List of pairs: regexp of the file extension anda function to construct filename by the given base name.")
 
 
-(defvar cff-header-dirs '("inc")
+(defvar cff-header-dirs '("inc" "include" "privinc" "private_include")
   "A list of short directory names to look headers in.")
-(defvar cff-source-dirs '("src")
+(defvar cff-source-dirs '("src" "source")
   "A list of short directory names to look sources in." )
 (defvar cff-interface-dirs '("if")
   "A list of short directory names to look interfaces in.")
@@ -88,16 +90,16 @@ Example:
   "Find the top level directory if the current directory is in a git/svn repo.
 Otherwise return the root directory"
   (interactive)
-  (let* ((current-dir (file-name-directory (buffer-file-name)))
+  (let* ((current-dir (expand-file-name (file-name-directory (buffer-file-name))))
          (cff-top-repo-directory-for-file current-dir))))
 
 (defun cff-top-repo-directory-for-file (filename)
   "Find the top-level directory for a file it is in a git/svn repo.
 Otherwise return the root directory"
-  (let* ((root (or (locate-dominating-file filename ".git")
+  (let* ((root (or (locate-dominating-file filename ".git") 
                    (locate-dominating-file filename ".svn")
                    (cff-root-path filename))))
-    (file-name-as-directory root)))
+    (expand-file-name (file-name-as-directory root))))
 
 
 (defun cff-get-current-file-path()
@@ -134,24 +136,48 @@ Otherwise return the root directory"
         ((equal type 'source) "source")
         (t  "unknown")))
 
+(defun find-last-match (substr str)
+  "Find the position of the last match of the substring SUBSTR in the string STR.
+Return nil if not found."
+  (let ((last-match nil)
+        (match (string-match substr str 0)))
+    (when match
+      (setf last-match match)
+      (while (setf match (string-match substr str (1+ last-match)))
+              (setf last-match match)))
+    last-match))
+
+(defun replace-last-match (substr to str)
+  "Replaces the last match SUBSTR in the string STR to the string TO.
+Return new string or nil if failed"
+  (let ((match (find-last-match substr str)))
+    (when match
+      (concat (substring str 0 match)
+               (replace-regexp-in-string substr to str nil nil nil match)))))
+
+
 (defun cff-do-find-other-file (top-dir current-dir subdirs predicate)
   (let ((found (cff-find-files-with top-dir
                                     fdir
                                     subdirs
-                                    predicate)))
-    (if found
-        (if (> (length found) 1)
-            ;; TODO present a menu
-            (find-file (car found))
-          ;; only one
-          (find-file (car found)))
-      (message "Not found"))))
+                                    predicate))
+    (cff-process-found found))))
 
+
+(defun cff-process-found (found)
+  (if found
+      (if (> (length found) 1)
+          ;; TODO present a menu
+          (find-file (car found))
+        ;; only one
+        (find-file (car found)))
+    (message "Not found")))
+  
 
 (defun cff-find-other-file ()
   "Find the appropriate header, source or interface file for the current file"
   (interactive)
-  (let* ((fname (buffer-file-name))     ; full file name
+  (let* ((fname (expand-file-name (buffer-file-name)))     ; full file name
          (ftype (cff-file-type fname))  ; file type
          (fdir (file-name-directory fname)) ; directory where the file is
          (fname-without-ext (file-name-base fname)) ; base file name (without extension)
@@ -204,7 +230,7 @@ starting from the  DIR or its SUBDIRS and movig up to the TOP-DIR"
   ;; first try to look in the dir
   (let ((found (cff-find-file-in-subdir dir criteria)))
     ;; if push the result to the accumulator
-    (when found (push (concat dir found) acc)))
+    (when found (pushnew (concat dir found) acc)))
   ;; then look in all listed subdirs of the dir
   (let* ((fulldir (file-name-as-directory dir))
          (full-subdirs
@@ -214,7 +240,7 @@ starting from the  DIR or its SUBDIRS and movig up to the TOP-DIR"
     (dolist (d full-subdirs)
       (let ((fname (cff-find-file-in-subdir d criteria)))
         (when fname
-          (push (concat d fname) acc)))))
+          (pushnew (concat d fname) acc)))))
   ;; now verify if we are in the top dir
   (if (string= top-dir dir)
       acc                               ; return accumulated paths
