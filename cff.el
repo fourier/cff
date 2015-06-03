@@ -42,7 +42,7 @@
 ;;; Issues:
 ;;
 ;;; TODO:
-;;  Add possibility to traverse file gier
+;;  More options to find files (possibly in the whole git repository?)
 ;; 
 ;;; Change Log:
 ;; 
@@ -144,7 +144,7 @@ Return nil if not found."
     (when match
       (setf last-match match)
       (while (setf match (string-match substr str (1+ last-match)))
-              (setf last-match match)))
+        (setf last-match match)))
     last-match))
 
 (defun replace-last-match (substr to str)
@@ -153,15 +153,45 @@ Return new string or nil if failed"
   (let ((match (find-last-match substr str)))
     (when match
       (concat (substring str 0 match)
-               (replace-regexp-in-string substr to str nil nil nil match)))))
+              (replace-regexp-in-string substr to str nil nil nil match)))))
 
 
-(defun cff-do-find-other-file (top-dir current-dir subdirs predicate)
-  (let ((found (cff-find-files-with top-dir
-                                    fdir
-                                    subdirs
-                                    predicate)))
-    (cff-process-found found)))
+(defun cff-find-replacement (filename filetype)
+  "Determines if the file path contains on of the directories from defined lists
+to construct possible path to another file. Returns this directory short name
+\(i.e. 'source', 'inc' etc)."
+  (let ((repl-list
+         (cond ((eql filetype 'header)
+                cff-header-dirs)
+               ((eql filetype 'interface)
+                cff-interface-dirs)
+               ((eql filetype 'source)
+                cff-source-dirs)
+               (t nil))))
+    (when repl-list
+      (dolist (d repl-list)
+        (when (find-last-match (concat "/" d "/") filename)
+          (return d))))))
+
+
+(defun cff-find-files-with-path (file replace-dir subdirs regexps)
+  "Finds all possible files by replacing dirs like inc -> src"
+  (when replace-dir ; files in path like (src|inc)/somepath/to/myfile.cpp
+    (let ((basename (file-name-base file))
+          (basedir (file-name-as-directory (file-name-directory file)))
+          (replace-fragment (concat "/" replace-dir "/"))
+          (results nil))
+      (dolist (d subdirs)
+        ;; construct possible directory where we could find our source/header
+        (let ((possible-dir (replace-last-match replace-fragment (concat "/" d "/") basedir)))
+          ;; if able to construct directory
+          (when possible-dir
+            ;; iterate through all possible file names
+            (dolist (pair regexps)
+              (let ((possible-file (concat possible-dir (funcall (cdr pair) basename))))
+                (when (file-exists-p possible-file)
+                  (pushnew possible-file results)))))))
+      results)))
 
 
 (defun cff-process-found (found)
@@ -172,7 +202,7 @@ Return new string or nil if failed"
         ;; only one
         (find-file (car found)))
     (message "Not found")))
-  
+
 
 (defun cff-find-other-file ()
   "Find the appropriate header, source or interface file for the current file"
@@ -181,26 +211,43 @@ Return new string or nil if failed"
          (ftype (cff-file-type fname))  ; file type
          (fdir (file-name-directory fname)) ; directory where the file is
          (fname-without-ext (file-name-base fname)) ; base file name (without extension)
-         (top-dir (cff-top-repo-directory-for-file fname)))         ; repo top directory
-    (cond ((eql ftype 'header)
-           (cff-do-find-other-file top-dir
-                                   fdir
-                                   cff-source-dirs
-                                   #'(lambda (x)
-                                       (cff-is-source-for-header x fname))))
-          ((eql ftype 'source)
-           (cff-do-find-other-file top-dir
-                                   fdir
-                                   cff-header-dirs
-                                   #'(lambda (x)
-                                   (cff-is-header-for-source x fname))))
-          ((eql ftype 'interface)
-           (cff-do-find-other-file top-dir
-                                   fdir
-                                   cff-source-dirs
-                                   #'(lambda (x)
-                                   (cff-is-source-for-interface x fname))))
-          (t (message "Not implemented")))))
+         (top-dir (cff-top-repo-directory-for-file fname))         ; repo top directory
+         (replacement (cff-find-replacement fname ftype))
+         ;; first find in closest directrories up in file hierarchy
+         (found 
+          (cond ((eql ftype 'header)
+                 (cff-find-files-with-predicate top-dir fdir cff-source-dirs
+                                                #'(lambda (x)
+                                                    (cff-is-source-for-header x fname))))
+                ((eql ftype 'source)
+                 (cff-find-files-with-predicate top-dir fdir cff-header-dirs
+                                                #'(lambda (x)
+                                                    (cff-is-header-for-source x fname))))
+                ((eql ftype 'interface)
+                 (cff-find-files-with-predicate top-dir fdir cff-source-dirs
+                                                #'(lambda (x)
+                                                    (cff-is-source-for-interface x fname))))
+                (t nil))))
+    (if (eql ftype 'unknown)
+        (message "Unknown file type")
+      ;; next try to find by replacing strings in path (like src->inc)
+      (let ((found-in-path
+             (cond ((eql ftype 'header)
+                    (cff-find-files-with-path fname replacement cff-source-dirs
+                                              cff-source-regexps))
+                   ((eql ftype 'source)
+                    (cff-find-files-with-path fname replacement cff-header-dirs
+                                              cff-header-regexps))
+                   ((eql ftype 'interface)
+                    (cff-find-files-with-path fname replacement cff-source-dirs
+                                                cff-source-regexps)))))
+        (when found-in-path
+          (dolist (f found-in-path)
+            ;; they may be already in results, so push only new
+            (pushnew f found)))
+        ;; process results
+        (cff-process-found found)))))
+
 
 ;; algorithm:
 ;; guess if source, header or interface
@@ -219,13 +266,13 @@ Return new string or nil if failed"
 
 (defun cff-find-file-in-subdir (dir criteria)
   (let ((files (directory-files dir)))
-        (find-if criteria files)))
+    (find-if criteria files)))
 
-(defun cff-find-files-with (top-dir dir subdirs criteria)
+(defun cff-find-files-with-predicate (top-dir dir subdirs criteria)
   "Returns the lisf of full paths to files which complies CRITERIA,
 starting from the  DIR or its SUBDIRS and movig up to the TOP-DIR"
-    (cff-find-files-with-iter top-dir dir subdirs criteria nil))
-     
+  (cff-find-files-with-iter top-dir dir subdirs criteria nil))
+
 (defun cff-find-files-with-iter (top-dir dir subdirs criteria acc)
   ;; first try to look in the dir
   (let ((found (cff-find-file-in-subdir dir criteria)))
@@ -261,7 +308,7 @@ up to the TOP-DIR"
 
 (defun cff-is-header-for-source (header source)
   "Determines if the HEADER (short file name) corresponds to the SOURCE (full file path)"
- (let ((basename (file-name-base source))
+  (let ((basename (file-name-base source))
         ;; find if it is a header file
         (found (cff-is-header header)))
     (when (and found
@@ -269,7 +316,7 @@ up to the TOP-DIR"
                ;; construct its name (from the second argument of map regexp to
                ;; function constructing the name) to the header name
                (string= header (funcall (cdr found) basename)))
-               header)))
+      header)))
 
 (defun cff-is-source-for-header (source header)
   "Determines if the SOURCE (short file name) corresponds to the HEADER (full file path)"
@@ -281,7 +328,7 @@ up to the TOP-DIR"
                ;; construct its name (from the second argument of map regexp to
                ;; function constructing the name) to the source name
                (string= source (funcall (cdr found) basename)))
-               source)))
+      source)))
 
 (defun cff-is-source-for-interface (source header)
   "Determines if the SOURCE (short file name) corresponds to the interface HEADER (full file path)"
