@@ -160,8 +160,8 @@ Return new string or nil if failed"
   (let ((found (cff-find-files-with top-dir
                                     fdir
                                     subdirs
-                                    predicate))
-    (cff-process-found found))))
+                                    predicate)))
+    (cff-process-found found)))
 
 
 (defun cff-process-found (found)
