@@ -90,10 +90,15 @@ Example:
 (defun cff-top-repo-directory-for-file (filename)
   "Find the top-level directory for a file it is in a git/svn repo.
 Otherwise return the root directory"
-  (let* ((root (or (locate-dominating-file filename ".git") 
-                   (locate-dominating-file filename ".svn")
-                   (cff-root-path filename))))
-    (expand-file-name (file-name-as-directory root))))
+  (cl-labels ((expand (fname) (expand-file-name (file-name-as-directory fname)))
+              (get-vc-root (fname vcdir vcsymbol)
+                           (let ((found (locate-dominating-file fname vcdir)))
+                             (when found (list (expand found) vcsymbol)))))
+    (let* ((root (or (get-vc-root filename ".git" 'git)
+                     (get-vc-root filename ".svn" 'svn)
+                     (list (expand (cff-root-path filename)) 'dir))))
+      root)))
+
 
 
 (defun cff-is-header (filename)
@@ -187,6 +192,10 @@ to construct possible path to another file. Returns this directory short name
     (message "Not found")))
 
 
+(defun cff-find-in-git (fname top-dir regexps)
+  (let ((basename (file-name-base filename)))
+    nil))
+
 (defun cff-find-other-file ()
   "Find the appropriate header, source or interface file for the current file"
   (interactive)
@@ -194,8 +203,14 @@ to construct possible path to another file. Returns this directory short name
          (ftype (cff-file-type fname))  ; file type
          (fdir (file-name-directory fname)) ; directory where the file is
          (fname-without-ext (file-name-base fname)) ; base file name (without extension)
-         (top-dir (cff-top-repo-directory-for-file fname))         ; repo top directory
-         (replacement (cff-find-replacement fname ftype)))
+         (top-dir-pair (cff-top-repo-directory-for-file fname))
+         (top-dir (car top-dir-pair))         ; repo top directory
+         (repo-type (cdr top-dir-pair))       ; repo type
+         (replacement (cff-find-replacement fname ftype))
+         (regexps (make-hash-table)))
+    (puthash 'header cff-source-regexps regexps)
+    (puthash 'source cff-header-regexps regexps)
+    (puthash 'interface cff-source-regexps regexps)
     (if (eql ftype 'unknown)
         (message "Unknown file type")
       ;; first find in closest directrories up in file hierarchy
@@ -223,13 +238,22 @@ to construct possible path to another file. Returns this directory short name
                                               cff-header-regexps))
                    ((eql ftype 'interface)
                     (cff-find-files-with-path fname replacement cff-source-dirs
-                                              cff-source-regexps)))))
+                                              cff-source-regexps))))
+            ;; and at last find all similar in git
+            (found-in-git (when (eql repo-type 'git)
+                            (cff-find-in-git fname top-dir (gethash ftype regexps)))))
         (when found-in-path
           (dolist (f found-in-path)
             ;; they may be already in results, so push only new
             (pushnew f found)))
-        ;; process results
-        (cff-process-found found)))))
+        ;; add all found in git repo
+        (when found-in-git
+          (dolist (f found-in-git)
+            ;; they may be already in results, so push only new
+            (pushnew f found)))
+        (when found
+          ;; process results
+          (cff-process-found found))))))
 
 
 ;; algorithm:
