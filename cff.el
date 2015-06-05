@@ -93,10 +93,10 @@ Otherwise return the root directory"
   (cl-labels ((expand (fname) (expand-file-name (file-name-as-directory fname)))
               (get-vc-root (fname vcdir vcsymbol)
                            (let ((found (locate-dominating-file fname vcdir)))
-                             (when found (list (expand found) vcsymbol)))))
+                             (when found (cons (expand found) vcsymbol)))))
     (let* ((root (or (get-vc-root filename ".git" 'git)
                      (get-vc-root filename ".svn" 'svn)
-                     (list (expand (cff-root-path filename)) 'dir))))
+                     (cons (expand (cff-root-path filename)) 'dir))))
       root)))
 
 
@@ -193,8 +193,15 @@ to construct possible path to another file. Returns this directory short name
 
 
 (defun cff-find-in-git (fname top-dir regexps)
-  (let ((basename (file-name-base filename)))
-    nil))
+  (let* ((basename (file-name-base fname))
+         ;; list of files to look for
+         (filelist (mapcar #'(lambda (x) (funcall (cdr x) basename)) regexps))
+         ;; list of files in repo
+         (git-list
+          (mapcar #'(lambda (x) (concat top-dir x))
+                      (split-string
+                       (shell-command-to-string (concat "git ls-files --full-name " top-dir))))))
+         nil))
 
 (defun cff-find-other-file ()
   "Find the appropriate header, source or interface file for the current file"
