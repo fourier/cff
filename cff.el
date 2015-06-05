@@ -86,12 +86,6 @@ Example:
     (when (eql (elt fname x) ?/)
       (return (substring fname 0 (1+ x))))))
 
-(defun cff-top-repo-directory ()
-  "Find the top level directory if the current directory is in a git/svn repo.
-Otherwise return the root directory"
-  (interactive)
-  (let* ((current-dir (expand-file-name (file-name-directory (buffer-file-name))))
-         (cff-top-repo-directory-for-file current-dir))))
 
 (defun cff-top-repo-directory-for-file (filename)
   "Find the top-level directory for a file it is in a git/svn repo.
@@ -101,10 +95,6 @@ Otherwise return the root directory"
                    (cff-root-path filename))))
     (expand-file-name (file-name-as-directory root))))
 
-
-(defun cff-get-current-file-path()
-  "Directory containing current opened file"
-  (file-name-directory (buffer-file-name)))
 
 (defun cff-is-header (filename)
   "Determines if the file is a header and returns a pair (regex, function to construct file name from the regex) if so"
@@ -128,13 +118,6 @@ Otherwise return the root directory"
         ((cff-is-header fname) 'header)
         ((cff-is-source fname) 'source)
         (t 'unknown)))
-
-(defun cff-file-type-string (type)
-  "Returs a string by the file type symbol TYPE"
-  (cond ((equal type 'interface) "interface")
-        ((equal type 'header) "header")
-        ((equal type 'source) "source")
-        (t  "unknown")))
 
 (defun find-last-match (substr str)
   "Find the position of the last match of the substring SUBSTR in the string STR.
@@ -212,26 +195,26 @@ to construct possible path to another file. Returns this directory short name
          (fdir (file-name-directory fname)) ; directory where the file is
          (fname-without-ext (file-name-base fname)) ; base file name (without extension)
          (top-dir (cff-top-repo-directory-for-file fname))         ; repo top directory
-         (replacement (cff-find-replacement fname ftype))
-         ;; first find in closest directrories up in file hierarchy
-         (found 
-          (cond ((eql ftype 'header)
-                 (cff-find-files-with-predicate top-dir fdir cff-source-dirs
-                                                #'(lambda (x)
-                                                    (cff-is-source-for-header x fname))))
-                ((eql ftype 'source)
-                 (cff-find-files-with-predicate top-dir fdir cff-header-dirs
-                                                #'(lambda (x)
-                                                    (cff-is-header-for-source x fname))))
-                ((eql ftype 'interface)
-                 (cff-find-files-with-predicate top-dir fdir cff-source-dirs
-                                                #'(lambda (x)
-                                                    (cff-is-source-for-interface x fname))))
-                (t nil))))
+         (replacement (cff-find-replacement fname ftype)))
     (if (eql ftype 'unknown)
         (message "Unknown file type")
-      ;; next try to find by replacing strings in path (like src->inc)
-      (let ((found-in-path
+      ;; first find in closest directrories up in file hierarchy
+      (let ((found 
+             (cond ((eql ftype 'header)
+                    (cff-find-files-with-predicate top-dir fdir cff-source-dirs
+                                                   #'(lambda (x)
+                                                       (cff-is-source-for-header x fname))))
+                   ((eql ftype 'source)
+                    (cff-find-files-with-predicate top-dir fdir cff-header-dirs
+                                                   #'(lambda (x)
+                                                       (cff-is-header-for-source x fname))))
+                   ((eql ftype 'interface)
+                    (cff-find-files-with-predicate top-dir fdir cff-source-dirs
+                                                   #'(lambda (x)
+                                                       (cff-is-source-for-interface x fname))))
+                   (t nil)))
+            ;; next try to find by replacing strings in path (like src->inc)
+            (found-in-path
              (cond ((eql ftype 'header)
                     (cff-find-files-with-path fname replacement cff-source-dirs
                                               cff-source-regexps))
@@ -240,7 +223,7 @@ to construct possible path to another file. Returns this directory short name
                                               cff-header-regexps))
                    ((eql ftype 'interface)
                     (cff-find-files-with-path fname replacement cff-source-dirs
-                                                cff-source-regexps)))))
+                                              cff-source-regexps)))))
         (when found-in-path
           (dolist (f found-in-path)
             ;; they may be already in results, so push only new
@@ -294,16 +277,6 @@ starting from the  DIR or its SUBDIRS and movig up to the TOP-DIR"
     ;; otherwise repeat with the parent directory
     (cff-find-files-with-iter top-dir (file-name-directory (directory-file-name dir))
                               subdirs criteria acc)))
-
-(defun cff-find-other-file-source (top-dir filename)
-  "Find the source file for the header FILENAME given, traversing directories
-up to the TOP-DIR"
-  (let ((short-name (file-name-base filename))
-        (fdir (file-name-directory filename)))
-    (cff-find-file-in-hierarchy top-dir
-                                fdir
-                                cff-header-dirs #'(lambda (x)
-                                                    (string= (file-name-base x) short-name)))))
 
 
 (defun cff-is-header-for-source (header source)
