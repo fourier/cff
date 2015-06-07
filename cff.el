@@ -26,7 +26,11 @@
 ;;
 ;;; Commentary:
 ;;
-;; This is a replacement for the ff-find-other-file.
+;; This is a replacement for the ff-find-other-file. If the helm is loaded,
+;; uses it to provide possible multiple choices; otherwise just picks the
+;; first one.
+;; 
+;; Usage:
 ;; Add the following to your .emacs file:
 ;; 
 ;; (require 'cff)
@@ -74,6 +78,9 @@
   "A list of short directory names to look sources in." )
 (defvar cff-interface-dirs '("if")
   "A list of short directory names to look interfaces in.")
+
+;; optional helm dependency
+(require 'helm nil t)
 
 (defun cff-root-path (fname)
   "Return the root for the given filename `FNAME'.
@@ -178,25 +185,34 @@ to construct possible path to another file. Returns this directory short name
             (dolist (pair regexps)
               (let ((possible-file (concat possible-dir (funcall (cdr pair) basename))))
                 (when (file-exists-p possible-file)
-                  (pushnew possible-file results)))))))
+                  (pushnew possible-file results :test 'string=)))))))
       results)))
 
 
 (defun cff-process-found (found)
-  (if found
-      (if (> (length found) 1)
-          ;; TODO present a menu
-          (find-file (car found))
-        ;; only one
-        (find-file (car found)))
-    (message "Not found")))
+  (cond ((not found) (message "Not found"))
+        ;; found one alternative
+        ((and found (= (length found) 1))
+         (find-file (car found)))
+        ;; found several alternatives
+        (t
+         (if (fboundp 'helm)
+             ;; use helm if available
+             (let ((some-helm-source
+                    '((name . "Possible alternatives")
+                      (candidates . found)
+                      (action . (lambda (candidate)
+                                  (find-file candidate))))))
+               (helm :sources '(some-helm-source)))
+           ;; otherwise just pick the first file in the list
+           (find-file (car found))))))
 
 
 (defun cff-find-in-git (fname top-dir regexps)
   (let* ((basename (file-name-base fname))
          ;; list of files to look for
          (filelist (mapcar #'(lambda (x) (funcall (cdr x) basename)) regexps))
-         (fregexp (concat "\\(" (mapconcat 'identity filelist "\\|") "\\)$"))
+         (fregexp (concat "/\\(" (mapconcat 'identity filelist "\\|") "\\)$"))
          ;; list of files in repo
          (git-list
           (mapcar #'(lambda (x) (concat top-dir x))
@@ -257,16 +273,16 @@ to construct possible path to another file. Returns this directory short name
         (when found-in-path
           (dolist (f found-in-path)
             ;; they may be already in results, so push only new
-            (pushnew f found)))
+            (pushnew f found :test 'string=)))
         ;; add all found in git repo
         (when found-in-git
           (dolist (f found-in-git)
             ;; they may be already in results, so push only new
-            (pushnew f found)))
+            (pushnew f found :test 'string=)))
         (when found
           ;; process results
-          (setf found (nreverse found))
-          (cff-process-found found))))))
+          (setf found (nreverse found)))
+        (cff-process-found found)))))
 
 
 ;; algorithm:
@@ -297,7 +313,7 @@ starting from the  DIR or its SUBDIRS and movig up to the TOP-DIR"
   ;; first try to look in the dir
   (let ((found (cff-find-file-in-subdir dir criteria)))
     ;; if push the result to the accumulator
-    (when found (pushnew (concat dir found) acc)))
+    (when found (pushnew (concat dir found) acc :test 'string=)))
   ;; then look in all listed subdirs of the dir
   (let* ((fulldir (file-name-as-directory dir))
          (full-subdirs
@@ -307,7 +323,7 @@ starting from the  DIR or its SUBDIRS and movig up to the TOP-DIR"
     (dolist (d full-subdirs)
       (let ((fname (cff-find-file-in-subdir d criteria)))
         (when fname
-          (pushnew (concat d fname) acc)))))
+          (pushnew (concat d fname) acc :test 'string=)))))
   ;; now verify if we are in the top dir
   (if (string= top-dir dir)
       acc                               ; return accumulated paths
