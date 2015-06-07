@@ -55,6 +55,9 @@
 ;;
 ;;; Code:
 
+(defvar cff-no-choice nil
+  "If true, determines if there are several possible choices always to use the first one.")
+
 (defvar cff-header-regexps '(("\\.h$" . (lambda (base) (concat base ".h")))
                              ("\\.hpp$" . (lambda (base) (concat base ".hpp")))
                              ("\\.hxx$" . (lambda (base) (concat base ".hxx"))))
@@ -196,7 +199,8 @@ to construct possible path to another file. Returns this directory short name
          (find-file (car found)))
         ;; found several alternatives
         (t
-         (if (fboundp 'helm)
+         ;; if helm is available and cff-no-choice is true
+         (if (and (not cff-no-choice) (fboundp 'helm))
              ;; use helm if available
              (let ((some-helm-source
                     '((name . "Possible alternatives")
