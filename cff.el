@@ -200,14 +200,13 @@ to construct possible path to another file. Returns this directory short name
          ;; list of files in repo
          (git-list
           (mapcar #'(lambda (x) (concat top-dir x))
-                      (split-string
-                       (shell-command-to-string (concat "git ls-files --full-name " top-dir)))))
-         (found nil)))
-  (dolist (f git-list)
-    (when (string-match fregexp f)
-      (push f found)))
-  (dolist (f found)
-    (message f)))
+                  (split-string
+                   (shell-command-to-string (concat "git ls-files --full-name " top-dir)))))
+         (found nil))
+    (dolist (f git-list)
+      (when (string-match fregexp f)
+        (push f found)))
+    found))
 
 (defun cff-find-other-file ()
   "Find the appropriate header, source or interface file for the current file"
@@ -266,6 +265,7 @@ to construct possible path to another file. Returns this directory short name
             (pushnew f found)))
         (when found
           ;; process results
+          (setf found (nreverse found))
           (cff-process-found found))))))
 
 
