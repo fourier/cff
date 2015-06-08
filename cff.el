@@ -213,15 +213,20 @@ to construct possible path to another file. Returns this directory short name
 
 
 (defun cff-find-in-git (fname top-dir regexps)
+  (message top-dir)
   (let* ((basename (file-name-base fname))
          ;; list of files to look for
          (filelist (mapcar #'(lambda (x) (funcall (cdr x) basename)) regexps))
          (fregexp (concat "/\\(" (mapconcat 'identity filelist "\\|") "\\)$"))
          ;; list of files in repo
          (git-list
+          ;; contatenate all found files with the top-dir
           (mapcar #'(lambda (x) (concat top-dir x))
-                  (split-string
-                   (shell-command-to-string (concat "git ls-files --full-name " top-dir)))))
+                  (split-string         ; split the list of files from string
+                   (with-temp-buffer
+                     (call-process "git" nil 't nil 
+                                   "ls-files" "--full-name" top-dir)
+                     (buffer-string))))) ; run the command to the temp buffer
          (found nil))
     (dolist (f git-list)
       (when (string-match fregexp f)
