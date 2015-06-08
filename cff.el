@@ -213,7 +213,6 @@ to construct possible path to another file. Returns this directory short name
 
 
 (defun cff-find-in-git (fname top-dir regexps)
-  (message top-dir)
   (let* ((basename (file-name-base fname))
          ;; list of files to look for
          (filelist (mapcar #'(lambda (x) (funcall (cdr x) basename)) regexps))
