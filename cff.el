@@ -193,7 +193,7 @@ to construct possible path to another file.  Returns this directory short name
     (when repl-list
       (dolist (d repl-list)
         (when (cff-find-last-match (concat "/" d "/") filename)
-          (return d))))))
+          (cl-return d))))))
 
 
 (defun cff-find-files-with-path (file replace-dir subdirs regexps)
