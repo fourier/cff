@@ -55,7 +55,6 @@
 ;;
 ;;; Code:
 
-(require 'cl)
 ;; optional helm dependency
 (require 'helm nil t)
 
@@ -209,7 +208,7 @@ Argument REGEXPS list of regexps to find."
       (dolist (d subdirs)
         ;; construct possible directory where we could find our source/header
         (let ((possible-dir (cff-replace-last-match replace-fragment
-                                                (concat "/" d "/") basedir)))
+                                                    (concat "/" d "/") basedir)))
           ;; if able to construct directory
           (when possible-dir
             ;; iterate through all possible file names
@@ -371,11 +370,11 @@ Argument ACC accumulator."
   ;; then look in all listed subdirs of the dir
   (let* ((fulldir (file-name-as-directory dir))
          (full-subdirs
-          (remove-if-not 'file-exists-p
-                         (mapcar #'(lambda (d)
-                                     (concat fulldir
-                                             (file-name-as-directory d)))
-                                 subdirs))))
+          (cl-remove-if-not 'file-exists-p
+                            (mapcar #'(lambda (d)
+                                        (concat fulldir
+                                                (file-name-as-directory d)))
+                                    subdirs))))
     (dolist (d full-subdirs)
       (let ((fname (cff-find-file-in-subdir d criteria)))
         (when fname
