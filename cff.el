@@ -55,6 +55,7 @@
 ;;
 ;;; Code:
 
+(require 'cl-lib)
 ;; optional helm dependency
 (require 'helm nil t)
 
@@ -127,21 +128,21 @@ Argument FILENAME the file name to find the topmost directory for."
 \(regex, function) to
 construct file name from the regex) if so.
 Argument FILENAME the potential header file name."
-  (find-if (lambda (x) (string-match (car x) filename)) cff-header-regexps))
+  (cl-find-if (lambda (x) (string-match (car x) filename)) cff-header-regexps))
 
 (defun cff-is-source (filename)
   "Determines if the file is a source and return a pair:
 \(regex, function) to
 construct file name from the regex) if so.
 Argument FILENAME potetntial source file name."
-  (find-if (lambda (x) (string-match (car x) filename)) cff-source-regexps))
+  (cl-find-if (lambda (x) (string-match (car x) filename)) cff-source-regexps))
 
 (defun cff-is-interface (filename)
   "Determines if the file is a C++ interface and return a pair:
 \(regex, function)
 to construct file name from the regex) if so.
 Argument FILENAME potential interface(special convention for header) file name."
-  (find-if (lambda (x) (string-match (car x) filename)) cff-interface-regexps))
+  (cl-find-if (lambda (x) (string-match (car x) filename)) cff-interface-regexps))
 
 (defun cff-file-type (fname)
   "Return the symbol determining the file type:
@@ -348,7 +349,7 @@ Using REGEXPS to construct a list of files based on FNAME."
 (defun cff-find-file-in-subdir (dir criteria)
   "Find files in DIR matching CRITERIA."
   (let ((files (directory-files dir)))
-    (find-if criteria files)))
+    (cl-find-if criteria files)))
 
 (defun cff-find-files-with-predicate (top-dir dir subdirs criteria)
   "Find all files with given predicate.
