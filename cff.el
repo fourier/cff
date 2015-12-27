@@ -105,7 +105,7 @@ Example:
 => \"C:/\""
   (dotimes (x (length fname))
     (when (eql (elt fname x) ?/)
-      (return (substring fname 0 (1+ x))))))
+      (cl-return (substring fname 0 (1+ x))))))
 
 
 (defun cff-top-repo-directory-for-file (filename)
@@ -217,7 +217,7 @@ Argument REGEXPS list of regexps to find."
               (let ((possible-file (concat possible-dir
                                            (funcall (cdr pair) basename))))
                 (when (file-exists-p possible-file)
-                  (pushnew possible-file results :test 'string=)))))))
+                  (cl-pushnew possible-file results :test 'string=)))))))
       results)))
 
 
@@ -318,12 +318,12 @@ Using REGEXPS to construct a list of files based on FNAME."
         (when found-in-path
           (dolist (f found-in-path)
             ;; they may be already in results, so push only new
-            (pushnew f found :test 'string=)))
+            (cl-pushnew f found :test 'string=)))
         ;; add all found in git repo
         (when found-in-git
           (dolist (f found-in-git)
             ;; they may be already in results, so push only new
-            (pushnew f found :test 'string=)))
+            (cl-pushnew f found :test 'string=)))
         (when found
           ;; process results
           (setf found (nreverse found)))
@@ -367,7 +367,7 @@ Argument ACC accumulator."
   ;; first try to look in the dir
   (let ((found (cff-find-file-in-subdir dir criteria)))
     ;; if push the result to the accumulator
-    (when found (pushnew (concat dir found) acc :test 'string=)))
+    (when found (cl-pushnew (concat dir found) acc :test 'string=)))
   ;; then look in all listed subdirs of the dir
   (let* ((fulldir (file-name-as-directory dir))
          (full-subdirs
@@ -379,7 +379,7 @@ Argument ACC accumulator."
     (dolist (d full-subdirs)
       (let ((fname (cff-find-file-in-subdir d criteria)))
         (when fname
-          (pushnew (concat d fname) acc :test 'string=)))))
+          (cl-pushnew (concat d fname) acc :test 'string=)))))
   ;; now verify if we are in the top dir
   (if (string= top-dir dir)
       acc                               ; return accumulated paths
