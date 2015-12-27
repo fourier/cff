@@ -103,7 +103,7 @@ Example:
 => \"/\"
 \(root-path \"C:/Users/myname/Downloads/somefile.exe\")
 => \"C:/\""
-  (dotimes (x (length fname))
+  (cl-dotimes (x (length fname))
     (when (eql (elt fname x) ?/)
       (cl-return (substring fname 0 (1+ x))))))
 
