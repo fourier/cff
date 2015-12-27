@@ -264,6 +264,7 @@ Using REGEXPS to construct a list of files based on FNAME."
         (push f found)))
     found))
 
+;;;###autoload
 (defun cff-find-other-file ()
   "Find the appropriate header, source or interface file for the current file."
   (interactive)
