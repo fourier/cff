@@ -191,7 +191,7 @@ to construct possible path to another file.  Returns this directory short name
                 cff-source-dirs)
                (t nil))))
     (when repl-list
-      (dolist (d repl-list)
+      (cl-dolist (d repl-list)
         (when (cff-find-last-match (concat "/" d "/") filename)
           (cl-return d))))))
 
