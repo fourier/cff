@@ -7,7 +7,7 @@
 ;; Version: 1.0.0
 ;; Keywords: find-file
 ;; Package-Requires: ((cl-lib "0.5") (emacs "24"))
-;; URL: https://github.com/fourier/eff
+;; URL: https://github.com/fourier/cff
 ;; Compatibility: GNU Emacs 24.x
 ;;
 ;; This file is NOT part of GNU Emacs.
