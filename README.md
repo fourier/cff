@@ -31,6 +31,6 @@ Add the following to your .emacs file:
 1. If still nothing, try to find a corresponding file in git repository which contains basename as a part.
 
 If multiple files found, present a selection to the user.
-When `helm` is enabled, present selection using `helm`, otherwise (or when the variable `cff-use-helm-choice` set to `t`) use the custom mode to present selection.
+When `helm` is enabled, present selection using `helm`, otherwise (or when the variable `cff-use-helm-choice` set to `nil`) use the custom mode to present selection.
 
 The file selected once is stored in the cache; to get the selection choice again one should prefix the command, i.e. `C-u M-o` if the command binded to `M-o`.
