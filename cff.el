@@ -1,8 +1,8 @@
 ;;; cff.el --- Search of the C/C++ file header by the source and vice versa -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015 Alexey Veretennikov
+;; Copyright (C) 2015-2016 Alexey Veretennikov
 ;;
-;; Author: Alexey Veretennikov <alexey dot veretennikov at gmail dot com>
+;; Author: Alexey Veretennikov <alexey.veretennikov@gmail.com>
 ;; Created: 2015-06-02
 ;; Version: 1.0.1
 ;; Keywords: find-file

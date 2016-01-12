@@ -1,8 +1,12 @@
-# C/C++ find other file
+# Yet another C/C++ find other file
 
 ## About
 This extension allows to quickly switch between C/C++ header and a source file with the same name located in the directory tree or a git repository.
 It is an alternative to `ff-find-other-file`.
+
+## Rationale
+The idea behind this extension is to have the solution which **just works** for the typical C/C++ projects with the minimal organizational discipline, without any project configuration in Emacs.
+
 
 ## Usage
 Add the following to your .emacs file:
@@ -27,6 +31,6 @@ Add the following to your .emacs file:
 1. If still nothing, try to find a corresponding file in git repository which contains basename as a part.
 
 If multiple files found, present a selection to the user.
-When `helm` is enabled, present selection using `helm`, otherwise (or when the variable `cff-use-helm-choice` set to `t`) use the custome mode to present selection.
+When `helm` is enabled, present selection using `helm`, otherwise (or when the variable `cff-use-helm-choice` set to `t`) use the custom mode to present selection.
 
 The file selected once is stored in the cache; to get the selection choice again one should prefix the command, i.e. `C-u M-o` if the command binded to `M-o`.
