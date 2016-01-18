@@ -138,6 +138,7 @@ of one argument to process selected result"
                                    (list
                                     'action
                                     (lambda (button)
+                                      (ignore button)
                                       (let ((arg (tabulated-list-get-id)))
                                         (quit-window t)
                                         (funcall
@@ -357,7 +358,6 @@ for multiple possible file variants; otherwise use the cached file name."
          (ftype (cff-file-type fname))  ; file type
          (fdir (file-name-directory fname)) ; directory where the file is
          ;; base file name (without extension)
-         (fname-without-ext (file-name-base fname))
          (top-dir-pair (cff-top-repo-directory-for-file fname))
          (top-dir (car top-dir-pair))         ; repo top directory
          (repo-type (cdr top-dir-pair))       ; repo type
