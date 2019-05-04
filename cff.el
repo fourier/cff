@@ -59,10 +59,16 @@
 (eval-when-compile (require 'cl-lib))
 ;; optional helm dependency
 (require 'helm nil t)
+(require 'ivy nil t)
 
 (defvar cff-use-helm-choice t
   "Determines what to do if there are several possible choices.
 If t, use helm if available.
+If nil, always use internal choice mode.")
+
+(defvar cff-use-ivy-choice t
+  "Determines what to do if there are several possible choices.
+If t, use ivy if available.
 If nil, always use internal choice mode.")
 
 (defvar cff-header-regexps '(("\\.h$" . (lambda (base) (concat base ".h")))
@@ -305,10 +311,13 @@ headers or sources for FNAME."
                       (action . (lambda (candidate)
                                   (cff-process-one-found ,fname candidate))))))
                (helm :sources some-helm-source))
-           ;; otherwise use internal choice mode
-           (cff-choice-show found (lambda (candidate)
-                                    (cff-process-one-found fname candidate)
-                                    ))))))
+           (if (and cff-use-ivy-choice (fboundp 'ivy-read))
+               (ivy-read "Possible alternatives: " found
+                         :action (lambda (candidate) (cff-process-one-found fname candidate)))
+             ;; otherwise use internal choice mode
+             (cff-choice-show found (lambda (candidate)
+                                      (cff-process-one-found fname candidate)
+                                      )))))))
 
 
 (defun cff-find-in-git (fname top-dir regexps &optional last-resort)
